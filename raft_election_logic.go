@@ -5,9 +5,12 @@ import (
 	"time"
 )
 
-/* startElectionTimer implements an election timer. It should be launched whenever
+/*
+	startElectionTimer implements an election timer. It should be launched whenever
+
 we want to start a timer towards becoming a candidate in a new election.
-This function runs as a go routine */
+This function runs as a go routine
+*/
 func (this *RaftNode) startElectionTimer() {
 	timeoutDuration := time.Duration(3000+rand.Intn(3000)) * time.Millisecond
 	this.mu.Lock()
@@ -99,17 +102,25 @@ func (this *RaftNode) startElection() {
 				// You probably need to have implemented becomeFollower before this.
 
 				//-------------------------------------------------------------------------------------------/
-				if reply.Term > {
-					// TODO
-				} else if reply.Term ==  {
-					// TODO
+				if reply.Term > this.currentTerm {
+					this.currentTerm = reply.Term
+					this.state = "Follower"
+					this.votedFor = -1
+					this.write_log("State changed from Candidate to Follower with term=%d", this.currentTerm)
+					return
+				} else if reply.Term == this.currentTerm {
+					if reply.VoteGranted {
+						votesReceived += 1
+						if votesReceived > len(this.peersIds)/2 {
+							this.startLeader()
+						}
+					}
+					//-------------------------------------------------------------------------------------------/
 				}
 				//-------------------------------------------------------------------------------------------/
-
 			}
 		}(peerId)
 	}
-
 	// Run another election timer, in case this election is not successful.
 	go this.startElectionTimer()
 }
@@ -122,4 +133,15 @@ func (this *RaftNode) becomeFollower(term int) {
 	//-------------------------------------------------------------------------------------------/
 	// TODO
 	//-------------------------------------------------------------------------------------------/
+	this.mu.Lock()
+	defer this.mu.Unlock()
+
+	// Update the term if the new term is greater than the current term.
+	if term > this.currentTerm {
+		this.currentTerm = term
+		this.votedFor = -1 // Reset votedFor field.
+		this.state = "Follower"
+		this.lastElectionTimerStartedTime = time.Now()
+		this.write_log("Updated currentTerm=%d; reset votedFor and election timer", term)
+	}
 }

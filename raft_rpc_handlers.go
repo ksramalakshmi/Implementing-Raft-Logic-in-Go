@@ -48,13 +48,31 @@ func (this *RaftNode) HandleRequestVote(args RequestVoteArgs, reply *RequestVote
 	// THIS REQUEST, OR NOT
 	// All the variables that you need for the conditions have been defined above.
 	//-------------------------------------------------------------------------------------------/
-	if  { // TODO: what are the conditions necessary to vote? HINT: there's multiple.
-
-		// TODO: indicate that it has voted.
-
+	if args.Term < this.currentTerm {
+		// Request vote is stale, reject it
+		reply.VoteGranted = false
+	} else if this.votedFor == -1 || this.votedFor == args.CandidateId {
+		// We have not voted for anyone in this term or we have already voted for this candidate
+		if args.LastLogTerm > nodeLastLogTerm ||
+			(args.LastLogTerm == nodeLastLogTerm && args.LastLogIndex >= nodeLastLogIndex) {
+			// Candidate's log is at least as up-to-date as our log
+			reply.VoteGranted = true
+			this.votedFor = args.CandidateId
+		} else {
+			// Candidate's log is not up-to-date, reject vote
+			reply.VoteGranted = false
+		}
 	} else {
+		// We have already voted for a different candidate in this term, reject vote
 		reply.VoteGranted = false
 	}
+	//if  { // TODO: what are the conditions necessary to vote? HINT: there's multiple.
+
+	// 	// TODO: indicate that it has voted.
+
+	// } else {
+	// 	reply.VoteGranted = false
+	// }
 	//-------------------------------------------------------------------------------------------/
 
 	reply.Term = this.currentTerm
